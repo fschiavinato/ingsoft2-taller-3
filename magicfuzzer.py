@@ -6,13 +6,14 @@ from typing import Dict, Set, List
 from fuzzingbook.Coverage import Location
 from fuzzingbook.MutationFuzzer import FunctionCoverageRunner
 from fuzzingbook.GreyboxFuzzer import getPathID
+random.seed()
 
 """
 Ejercicio 1
 """
 
 chars = (
-    string.ascii_uppercase + string.ascii_lowercase + string.digits + "+" + "%" + " "
+    string.ascii_uppercase + string.ascii_lowercase + string.digits + "+" + "%" + " " + "!"
 )
 
 
@@ -34,7 +35,7 @@ def delete_random_character(s: str) -> str:
 def flip_random_character(s: str) -> str:
     l = len(s)
     if l > 0:
-        i = random.randint(0, l)
+        i = random.randint(0, l-1)
         c = chr(~ord(s[i]) & 0xFF)
         s = s[:i] + c + s[i + 1 :]
     return s
@@ -49,22 +50,28 @@ class MagicFuzzer:
     def __init__(self, initial_inputs, function_to_call, function_name_to_call) -> None:
         self._contributing_inputs = []
         self._covered_locations = set()
-        runner = FunctionCoverageRunner(function_to_call)
+        self._function_name_to_call = function_name_to_call
+        self._runner = FunctionCoverageRunner(function_to_call)
         for input in initial_inputs:
-            last_covered = len(self._covered_locations)
-            _, outcome = runner.run(input)
-            locations = runner.coverage()
-            for location in locations:
-                if location[0] == function_name_to_call:
-                    self._covered_locations.add(location)
-            if len(self._covered_locations) > last_covered:
-                self._contributing_inputs.append(input)
+            self._run(input)
 
     def get_contributing_inputs(self) -> List[str]:
         return self._contributing_inputs
 
     def get_covered_locations(self) -> Set[Location]:
         return self._covered_locations
+
+    def _run(self, input):
+        last_covered = len(self._covered_locations)
+        self._runner.run(input)
+        locations = self._runner.coverage()
+        for location in locations:
+            if location[0] == self._function_name_to_call:
+                self._covered_locations.add(location)
+        if len(self._covered_locations) > last_covered:
+            self._contributing_inputs.append(input)
+
+        return locations
 
 
 """
@@ -118,6 +125,26 @@ class MagicFuzzer(MagicFuzzer):
         else:
             return flip_random_character(s)
 
+    _selector = None
     def fuzz(self) -> None:
-        selector = RouletteInputSelector(2)
+        if self._selector == None:
+            self._selector = RouletteInputSelector(2)
+            selection = " "
+        else:
+            selection = self._selector.select()
+       
+        newIndividual = self.mutate(selection)
+        covered_locations = self._run(newIndividual)
+        self._selector.add_new_execution(newIndividual, covered_locations)
         
+def fuzzear(function, name_function, campanias, iters):
+    for it in range(campanias):
+        m = MagicFuzzer([], function, name_function)
+        for i in range(iters):
+            m.fuzz()
+        print(name_function + " it" + str(it+1) + " #Líneas Cubiertas: " + str(len(m.get_covered_locations())) + " - contribuyeron: [" + ",".join(m.get_contributing_inputs()) + "]")
+
+from crashme import crashme
+fuzzear(crashme, "crashme", 5, 1000)
+from my_parser import my_parser
+fuzzear(my_parser, "feed", 5, 1000)
