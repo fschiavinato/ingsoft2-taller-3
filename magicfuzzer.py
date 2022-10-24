@@ -26,7 +26,7 @@ def insert_random_character(s: str) -> str:
 def delete_random_character(s: str) -> str:
     l = len(s)
     if l > 0:
-        i = random.randint(0, l)
+        i = random.randint(0, l-1)
         return s[0:i] + s[i + 1 : l]
     else:
         return s
@@ -36,7 +36,7 @@ def flip_random_character(s: str) -> str:
     l = len(s)
     if l > 0:
         i = random.randint(0, l-1)
-        c = chr(~ord(s[i]) & 0xFF)
+        c = chr(ord(s[i]) ^ (1 << random.randint(0, 6)))
         s = s[:i] + c + s[i + 1 :]
     return s
 
@@ -66,8 +66,12 @@ class MagicFuzzer:
         self._runner.run(input)
         locations = self._runner.coverage()
         for location in locations:
-            if location[0] == self._function_name_to_call:
+            if self._function_name_to_call != None:
+                if location[0] == self._function_name_to_call:
+                    self._covered_locations.add(location) 
+            else:
                 self._covered_locations.add(location)
+
         if len(self._covered_locations) > last_covered:
             self._contributing_inputs.append(input)
 
@@ -102,12 +106,12 @@ class RouletteInputSelector:
 
     def select(self) -> str:
         energies = {s: self.get_energy(s) for s in self._keys}
-        x = random.random() * sum(energies.values())
-        for s, e_s in energies.items():
-            if x <= e_s:
-                return s
+        pointer = random.random() * sum(energies.values())
+        for individual, energy in energies.items():
+            if pointer <= energy:
+                return individual
             else:
-                x -= e_s
+                pointer -= energy
 
 
 """
@@ -137,14 +141,25 @@ class MagicFuzzer(MagicFuzzer):
         covered_locations = self._run(newIndividual)
         self._selector.add_new_execution(newIndividual, covered_locations)
         
-def fuzzear(function, name_function, campanias, iters):
+def fuzzingUntilIterations(function, name_function, campanias, iters):
     for it in range(campanias):
         m = MagicFuzzer([], function, name_function)
-        for i in range(iters):
+        if iters != None:
+            for _ in range(iters):
+                m.fuzz()
+            print("función '" + function.__name__ + "' it" + str(it+1) + " #Líneas Cubiertas: " + str(len(m.get_covered_locations())) + " - contribuyeron: [" + ",".join(m.get_contributing_inputs()) + "]")
+         
+def fuzzingUntilCompleteCover(function, name_function, campanias, amountLines):
+    for it in range(campanias):
+        m = MagicFuzzer([], function, name_function)
+        count = 0
+        while len(m.get_covered_locations()) < amountLines:
             m.fuzz()
-        print(name_function + " it" + str(it+1) + " #Líneas Cubiertas: " + str(len(m.get_covered_locations())) + " - contribuyeron: [" + ",".join(m.get_contributing_inputs()) + "]")
+            count += 1
+        print("función '" + function.__name__ + "' it" + str(it+1) + " cantidad de iters: " + str(count) + " - contribuyeron: [" + ",".join(m.get_contributing_inputs()) + "]")
 
-from crashme import crashme
-fuzzear(crashme, "crashme", 5, 1000)
-from my_parser import my_parser
-fuzzear(my_parser, "feed", 5, 1000)
+if __name__ == "__main__":
+    from crashme import crashme
+    fuzzingUntilCompleteCover(crashme, "crashme", 5, 5)
+    from my_parser import my_parser
+    fuzzingUntilIterations(my_parser, None, 5, 5000)

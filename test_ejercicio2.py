@@ -1,7 +1,7 @@
 from typing import Iterable, List, Set, Tuple
 import unittest
 from crashme import crashme
-import magicfuzzer
+from magicfuzzer import Magicfuzzer
 
 Location = Tuple[str, int]
 
@@ -28,7 +28,7 @@ class TestCase(unittest.TestCase):
 
     def _assert(self, input, expected_cover: Set, expected_contributing: List):
 
-        fuzzer = magicfuzzer.MagicFuzzer(input, crashme, "crashme")
+        fuzzer = MagicFuzzer(input, crashme, "crashme")
         self.assertSetEqual(fuzzer.get_covered_locations(), expected_cover)
         self.assertListEqual(fuzzer.get_contributing_inputs(), expected_contributing)
 
