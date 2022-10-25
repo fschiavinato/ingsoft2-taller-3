@@ -1,7 +1,7 @@
 from typing import Iterable, List, Set, Tuple
 import unittest
 from crashme import crashme
-from magicfuzzer import Magicfuzzer
+from magicfuzzer import MagicFuzzer
 
 Location = Tuple[str, int]
 
